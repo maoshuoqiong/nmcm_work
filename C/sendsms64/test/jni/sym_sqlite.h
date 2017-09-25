@@ -7,7 +7,6 @@
 #ifndef __SQLITE3_H_
 #define __SQLITE3_H_
 
-#include <string.h>
 #include <android/log.h>
 #include <dlfcn.h>
 
