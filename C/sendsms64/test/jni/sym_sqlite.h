@@ -4,8 +4,8 @@
 * Link with -ldl
 */
 
-#ifndef __SQLITE3_H_
-#define __SQLITE3_H_
+#ifndef SYM_SQLITE_H_
+#define SYM_SQLITE_H_
 
 #include <android/log.h>
 #include <dlfcn.h>
@@ -43,9 +43,9 @@
 /* end-of-error-codes */
 
 
-typedef int Sqlite3_open(const char* filename, void** ppDb);
-typedef int Sqlite3_close(void* db);
-typedef int Sqlite3_exec(void*db, const char*sql, int(*callback)(void*,int, char**,char**),void* argforcallback, char **errmsg);
+typedef int Sqlite_open(const char* filename, void** ppDb);
+typedef int Sqlite_close(void* db);
+typedef int Sqlite_exec(void*db, const char*sql, int(*callback)(void*,int, char**,char**),void* argforcallback, char **errmsg);
 
 /* 
 SQLITE_API int sqlite3_open(
@@ -64,22 +64,22 @@ SQLITE_API int sqlite3_exec(
   char **errmsg                              // Error msg written here 
 );
 */
-Sqlite3_open * sym_open = NULL; 
-Sqlite3_close* sym_close= NULL;
-Sqlite3_exec * sym_exec = NULL;
+extern Sqlite_open * sym_open; 
+extern Sqlite_close* sym_close;
+extern Sqlite_exec * sym_exec;
 
 /*
 *  Function: initialization sym_open,sym_close, sym_exec functions
 *  Note:  Must use this function first.
 * 
 *  parm:
-*  return:  create_sqlite3 return 0 if success. Otherwise, nonzero is return.
+*  return:  create_sqlite return 0 if success. Otherwise, nonzero is return.
 */
-extern int create_sqlite3();
+extern int create_sqlite();
 
 /*
 * Free libs and symbols
 */
-extern void destroy_sqlite3();
+extern void destroy_sqlite();
 #endif
 

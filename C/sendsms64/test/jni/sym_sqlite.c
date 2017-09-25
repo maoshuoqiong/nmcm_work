@@ -17,9 +17,13 @@
 #endif
 
 static void* lib_handle = NULL;
+Sqlite_open * sym_open  = NULL; 
+Sqlite_close* sym_close = NULL;
+Sqlite_exec * sym_exec  = NULL;
 
-int create_sqlite3()
+int create_sqlite()
 {
+	LOGD("create_sqlite");
 	if(lib_handle != NULL)
 	{ /* not thread safe */
 		dlclose(lib_handle);
@@ -34,7 +38,7 @@ int create_sqlite3()
 	}
 	LOGD("open sqlite success");
 
-	if( (sym_open = (Sqlite3_open*)dlsym(lib_handle, "sqlite3_open")) == NULL)
+	if( (sym_open = (Sqlite_open*)dlsym(lib_handle, "sqlite3_open")) == NULL)
 	{
 		LOGE("sqlite_open error: %s", dlerror());
 		dlclose(lib_handle);
@@ -43,7 +47,7 @@ int create_sqlite3()
 	}
 	LOGD("get sqlite_open success");
 
-	if( (sym_close = (Sqlite3_close*)dlsym(lib_handle, "sqlite3_close")) == NULL)
+	if( (sym_close = (Sqlite_close*)dlsym(lib_handle, "sqlite3_close")) == NULL)
 	{
 		LOGE("sqlite_close error: %s", dlerror());
 		dlclose(lib_handle);
@@ -52,7 +56,7 @@ int create_sqlite3()
 	}
 	LOGD("get sqlite_close success");
 
-	if( (sym_exec = (Sqlite3_exec*)dlsym(lib_handle, "sqlite3_exec")) == NULL)
+	if( (sym_exec = (Sqlite_exec*)dlsym(lib_handle, "sqlite3_exec")) == NULL)
 	{
 		LOGE("sqlite_exec error: %s", dlerror());
 		dlclose(lib_handle);
@@ -65,8 +69,9 @@ int create_sqlite3()
 
 }
 
-void destroy_sqlite3()
+void destroy_sqlite()
 {
+	LOGD("destroy_sqlite");
 	if(lib_handle)
 		dlclose(lib_handle);
 
