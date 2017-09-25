@@ -1,9 +1,8 @@
-#include "sym_sqlite.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <android/log.h>
+#include "sym_sqlite.h"
 
 
 #define LOGD(fmt,args...) \
@@ -44,7 +43,13 @@ int main(void)
 
 	if( (sym_ret = sym_exec(db, sql, callback, db, &zErrMsg)) != SQLITE_OK)
 	{
-		LOGE("sql error: %s", zErrMsg);
+		LOGE("[-] sql error: %d", sym_ret);
+		if(zErrMsg)
+		{
+			LOGE("[-] sql error: %s", zErrMsg);
+			sym_free(zErrMsg);
+			zErrMsg = NULL;
+		}
 		goto exit1;
 	}
 
@@ -56,7 +61,13 @@ int main(void)
 		
 		if( (sym_ret = sym_exec(db, szSql, callback, db, &zErrMsg)) != SQLITE_OK)
 		{
-			LOGE("sql error: %s", zErrMsg);
+			LOGE("[-] sql error: %d", sym_ret);
+			if(zErrMsg)
+			{
+				LOGE("[-] sql error: %s", zErrMsg);
+				sym_free(zErrMsg);
+				zErrMsg = NULL;
+			}
 			goto exit1;
 		}
 	}
@@ -65,7 +76,13 @@ int main(void)
 	sprintf(szSql, "select * from person;");
 	if( (sym_ret = sym_exec(db, szSql, callback, db, &zErrMsg)) != SQLITE_OK)
 	{
-		LOGE("sql error: %s", zErrMsg);
+		LOGE("[-] sql error: %d", sym_ret);
+		if(zErrMsg)
+		{
+			LOGE("[-] sql error: %s", zErrMsg);
+			sym_free(zErrMsg);
+			zErrMsg = NULL;
+		}
 		goto exit1;
 	}
 

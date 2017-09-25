@@ -10,6 +10,10 @@
 #include <android/log.h>
 #include <dlfcn.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SQLITE_OK           0   /* Successful result */
 /* beginning-of-error-codes */
 #define SQLITE_ERROR        1   /* SQL error or missing database */
@@ -46,6 +50,7 @@
 typedef int Sqlite_open(const char* filename, void** ppDb);
 typedef int Sqlite_close(void* db);
 typedef int Sqlite_exec(void*db, const char*sql, int(*callback)(void*,int, char**,char**),void* argforcallback, char **errmsg);
+typedef void Sqlite_free(void*);
 
 /* 
 SQLITE_API int sqlite3_open(
@@ -67,6 +72,7 @@ SQLITE_API int sqlite3_exec(
 extern Sqlite_open * sym_open; 
 extern Sqlite_close* sym_close;
 extern Sqlite_exec * sym_exec;
+extern Sqlite_free * sym_free;
 
 /*
 *  Function: initialization sym_open,sym_close, sym_exec functions
@@ -81,5 +87,10 @@ extern int create_sqlite();
 * Free libs and symbols
 */
 extern void destroy_sqlite();
+
+#ifdef __cplusplus
+} /* end of the 'extern "c"' block */
 #endif
+
+#endif /* ifndef SYM_SQLITE_H_ */ 
 

@@ -1,5 +1,7 @@
 LOCAL_PATH := $(call my-dir)  
 
+SYM_SHARED_LIBRARY := 1
+
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := sym_sqlite_test 
@@ -17,7 +19,7 @@ LOCAL_SRC_FILES := sym_sqlite.c sym_sqlite_test.c
 #include $(BUILD_SHARED_LIBRARY)
 include $(BUILD_EXECUTABLE)
 
-ifdef SYMSHARED_LIBRARY
+ifdef SYM_SHARED_LIBRARY
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := sym_sqlite

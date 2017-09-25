@@ -20,6 +20,7 @@ static void* lib_handle = NULL;
 Sqlite_open * sym_open  = NULL; 
 Sqlite_close* sym_close = NULL;
 Sqlite_exec * sym_exec  = NULL;
+Sqlite_free * sym_free  = NULL;
 
 int create_sqlite()
 {
@@ -65,6 +66,15 @@ int create_sqlite()
 	}
 	LOGD("get sqlite_exec success");
 
+	if( (sym_free = (Sqlite_free*)dlsym(lib_handle, "sqlite3_free")) == NULL)
+	{
+		LOGE("sqlite_free error: %s", dlerror());
+		dlclose(lib_handle);
+		lib_handle = NULL;
+		return -1;
+	}
+	LOGD("get sqlite_free success");
+
 	return 0;
 
 }
@@ -79,5 +89,6 @@ void destroy_sqlite()
 	sym_open   = NULL;
 	sym_close  = NULL;
 	sym_exec   = NULL;
+	sym_free   = NULL;
 }
 
