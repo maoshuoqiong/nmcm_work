@@ -6,6 +6,7 @@
 #include <jni.h>
 #include <android/log.h>
 
+
 #define LOGE(fmt, args...) \
 	__android_log_print( ANDROID_LOG_ERROR, "HOOK", fmt, ##args)
 
@@ -40,6 +41,7 @@ int main(void)
     /* invoke the Main.test method using the JNI */
 
 	dlclose(dvm_hand);
+
 
 	return 0;
 }
