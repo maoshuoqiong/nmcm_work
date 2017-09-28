@@ -48,6 +48,7 @@ int main(int argc, const char* argv[])
 	}
 
 	LOGD("connect success\n");
+	write(sd, "gsm",3);
 	char buf[4096] = {0x00};
 	int nread = 0;
 	nread = read( sd, buf, sizeof(buf));
