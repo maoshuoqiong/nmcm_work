@@ -2,8 +2,8 @@ LOCAL_PATH := $(call my-dir)
   
 include $(CLEAR_VARS)
 LOCAL_MODULE    := dalvik
-#LOCAL_SRC_FILES := ../../libdalvik/obj/local/arm64-v8a/libdalvikhook.a
-LOCAL_SRC_FILES := ../../libdalvik/obj/local/armeabi-v7a/libdalvikhook.a
+LOCAL_SRC_FILES := ../../libdalvik/obj/local/arm64-v8a/libdalvikhook.a
+#LOCAL_SRC_FILES := ../../libdalvik/obj/local/armeabi-v7a/libdalvikhook.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)

@@ -315,7 +315,10 @@ extern "C" {
         int ret =-1;
         LOGE("enter send data Message");
         dexstuff_resolv_dvm(&d);
+/*
         JNIEnv* env = (JNIEnv*)d.dvmGetJNIEnvForThread_fnPtr();
+*/
+        JNIEnv* env = d.g_env;
         if (env==NULL) {
             LOGE("get java env failed .");
             return ret;
@@ -486,8 +489,10 @@ extern "C" {
                     break;
                 }
                 
-                
+               /* 
                 jclass c_ril= (*env)->FindClass(env,"com/android/internal/telephony/RIL");
+				*/
+                jclass c_ril= (*env)->FindClass(env,"com/android/internal/telephony/CommandsInterface");
                 if (c_ril==NULL) {
                     LOGE("GSM get class RIL return null");
                     break;
@@ -499,6 +504,8 @@ extern "C" {
                 }
                 
                 (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,NULL);
+				
+				LOGD("Send end");
                 ret =0;
             }else if (phone_type==2){
                 LOGE("phone type is CDMA");
