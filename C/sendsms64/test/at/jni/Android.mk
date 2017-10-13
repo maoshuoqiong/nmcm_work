@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := attest 
 
-LOCAL_LDLIBS += -llog -ldl
+#LOCAL_LDLIBS += -llog -ldl
 
 LOCAL_SRC_FILES := attest.c
 
