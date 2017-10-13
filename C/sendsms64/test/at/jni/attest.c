@@ -167,14 +167,23 @@ static void send_sms_msg(const char* num, const char* pdu)
 /*
 	write_line("AT+CMEE=1");
 */
-	write_line("AT+CMGS=25");
 	/* s_pdu = pdu; */
 	/* s_pdu = "0891683110808805F0" */
+#if 1
+	write_line("AT+CMGS=19");
+	s_pdu = "00"
+			"2100"
+			"0b815110040179f3"
+			"0008"
+			"064f60597d554a";
+#else
+	write_line("AT+CMGS=17");
 	s_pdu = "00"
 			"1100"
 			"0D91685110040179F3"
-			"000800"
-			"0A62117231542C8BC44E66";
+			"000000"
+			"02C834";
+#endif
 }
 
 int main(int argc, const char* argv[])
