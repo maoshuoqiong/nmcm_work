@@ -40,19 +40,8 @@ const char *linker_path = "/system/bin/linker";
 #define HOOK_SMS_SEND_SO "/data/local/tmp/libsm.so"
 #endif
 
-
-/*
-#if 0
-#define HOOK_SMS_SEND_SO "/system/lib/libsm.so"     //hook 发送短信的so文件路径
-#else
-//#define HOOK_SMS_SEND_SO "/data/local/tmp/libsm.so" //hook 发送短信的so文件路径
-#define HOOK_SMS_SEND_SO "/system/lib64/libsm.so" //hook 发送短信的so文件路径
-#endif
-*/
-
-
-#define SMS_NUMBER_LEN      32                  //短信号码最大长度
-#define SMS_CONTENT_LEN     512                 //短信内容最大长度
+#define SMS_NUMBER_LEN      32                  
+#define SMS_CONTENT_LEN     512                 
 
 #define bool _Bool
 #define true 1
@@ -230,7 +219,7 @@ int ptrace_getregs(pid_t pid, struct pt_regs * regs)
     ioVec.iov_len = sizeof(*regs);
     if (ptrace(PTRACE_GETREGSET, pid, (void*)regset, &ioVec) < 0) {
         perror("ptrace_getregs: Can not get register values");
-        printf(" io %llx, %d", ioVec.iov_base, ioVec.iov_len);
+        //printf(" io %llx, %d", ioVec.iov_base, ioVec.iov_len);
         return -1;
     }
     
@@ -544,8 +533,8 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     if (ptrace_call_wrapper(target_pid, "hook_entry", hook_entry_addr, parameters, 1, &regs) == -1)
         goto exit;
     
-    printf("Press enter to dlclose and detach\n");
-    getchar();
+    //printf("Press enter to dlclose and detach\n");
+    //getchar();
     parameters[0] = sohandle;
     
     if (ptrace_call_wrapper(target_pid, "dlclose", dlclose, parameters, 1, &regs) == -1)
@@ -562,6 +551,19 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
         ptrace_readdata(target_pid, errret, errbuf, 100);
 		LOGE("%s\n",errbuf);
 	}
+
+	/* munmap */
+	void *munmap_addr;
+	munmap_addr = get_remote_addr(target_pid, libc_path, (void *)munmap);
+    LOGE("[+] Remote munmap address: %llx\n", munmap_addr);
+
+	parameters[0] = map_base;
+	parameters[1] = 0x4000; /* size of mmap */
+
+	if(ptrace_call_wrapper(target_pid, "munmap", munmap_addr, parameters, 2, &regs) == -1)
+		goto exit;
+
+	LOGD("munmap return %ld",ptrace_retval(&regs));	
 
     /* restore */
     ptrace_setregs(target_pid, &original_regs);
