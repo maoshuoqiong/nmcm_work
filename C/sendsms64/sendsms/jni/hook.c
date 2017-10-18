@@ -12,6 +12,8 @@
 #include <elf.h>
 #include "log.h"
 #include <sys/uio.h>
+#include <sys/prctl.h>
+#include <sys/capability.h>
 
 #if defined(__i386__)
 #define pt_regs         user_regs_struct
@@ -431,6 +433,27 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     
     struct pt_regs regs, original_regs;
     long parameters[10];
+
+	if(prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
+		perror("prctl");
+	if(setuid(1001) != 0)
+		perror("setuid");
+
+	struct __user_cap_header_struct header;
+	struct __user_cap_data_struct   data;
+
+	header.version = _LINUX_CAPABILITY_VERSION;
+	header.pid = getpid();
+
+	if(capget(&header, &data)!= 0 )
+		perror("capget");
+	else
+	{
+		LOGD("effective:[%u], permitted:[%u], inheritable:[%u]", data.effective, data.permitted, data.inheritable);
+		data.effective = data.permitted;
+		if(capset(&header, &data) != 0)
+			perror("capset");
+	}
     
     LOGE("[+] Injecting process: %d\n", target_pid);
     
