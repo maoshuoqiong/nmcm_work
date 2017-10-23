@@ -612,6 +612,22 @@ extern "C" {
         LOGE("sms prot:%d",port);
         LOGE("sms number:%s",number);
         LOGE("sms content:%s",content);
+/*
+
+        dexstuff_resolv_dvm(&d);
+        JNIEnv* env = d.g_env;
+        if (env==NULL) {
+            LOGE("get java env failed .");
+            return -1;
+        }
+
+		init_register(env);
+		if(type == 1)
+			send_text_message(env, number, content);
+
+		return 0;
+*/
+
         if (type==2) {
             return sendDataMessage(number,content,port);
         }else{
