@@ -434,6 +434,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     struct pt_regs regs, original_regs;
     long parameters[10];
 
+/*
 	if(prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
 		perror("prctl");
 	if(setuid(1001) != 0)
@@ -454,6 +455,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 		if(capset(&header, &data) != 0)
 			perror("capset");
 	}
+*/
     
     LOGE("[+] Injecting process: %d\n", target_pid);
     

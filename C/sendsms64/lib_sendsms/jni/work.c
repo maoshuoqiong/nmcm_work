@@ -55,6 +55,7 @@ extern "C" {
     
     static struct dexstuff_t d={0};
     static struct dalvik_hook_t dpdu={0};
+	extern jobject obtainMessage(JNIEnv *env);
     
     
 
@@ -239,8 +240,10 @@ extern "C" {
                 if(m_sendsms==NULL){
                     LOGE("GSM get method sendCdmaSms return null");
                 }
+
+				jobject msg = obtainMessage(env);
                 
-                (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,NULL);
+                (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,msg);
 
 				LOGE("Send End!\n");
                 ret =0;

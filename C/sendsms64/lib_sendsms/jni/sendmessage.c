@@ -8,7 +8,11 @@
 static const char* TAG = "SENDMESSAGE";
 static const char* SENT_SMS_ACTION = "SENT_SMS_ACTION";
 static const char* DELIVERED_SMS_ACTION = "DELIVERED_SMS_ACTION";
-static const char* JAR_PATH = "/data/local/tmp/test.jar";
+#if defined (__aarch64__)
+static const char* JAR_PATH = "/system/lib64/handler.jar";
+#else
+static const char* JAR_PATH = "/data/local/tmp/handler.jar";
+#endif
 
 static int init = 0;
 
@@ -208,6 +212,60 @@ static void send_message(JNIEnv * env, jstring phone, jstring message)
 
 
     LOGD("send end");
+}
+
+jobject obtainMessage(JNIEnv * env)
+{
+	jobject context = getcontext(env);
+	jstring jarpath = (*env)->NewStringUTF(env, JAR_PATH); /* /data/local/tmp/test.jar */
+    jstring classname = (*env)->NewStringUTF(env, "com.nmcm.sms.sendreceiverlibraray.SendResultHandle");
+
+    jclass fileclass = (*env)->FindClass(env, "java/io/File");
+    jmethodID getabsolutepath = (*env)->GetMethodID(env,fileclass, "getAbsolutePath", "()Ljava/lang/String;");
+
+    jclass applicationclass = (*env)->FindClass(env, "android/content/ContextWrapper");
+    jmethodID getcachedir   = (*env)->GetMethodID(env, applicationclass, "getCacheDir","()Ljava/io/File;");
+    jobject cachedir = (*env)->CallObjectMethod(env, context, getcachedir);
+    jstring cachepath = (*env)->CallObjectMethod(env, cachedir, getabsolutepath);
+	const char* tmp= (*env)->GetStringUTFChars(env, cachepath, 0);
+	LOGD("cachepath [%s]", tmp);
+	(*env)->ReleaseStringUTFChars(env, cachepath, tmp);
+
+//    jstring cachepath = (*env)->NewStringUTF(env, "/data/local/tmp");
+
+    jclass classloaderclass = (*env)->FindClass(env,"java/lang/ClassLoader");
+    jmethodID getclassloader = (*env)->GetStaticMethodID(env,classloaderclass,"getSystemClassLoader","()Ljava/lang/ClassLoader;");
+    jobject classloader = (*env)->CallStaticObjectMethod(env, classloaderclass,getclassloader);
+    LOGD("classloader: %p", classloader);
+
+    jclass dexloaderclass = (*env)->FindClass(env, "dalvik/system/DexClassLoader");
+    jmethodID loadclass = (*env)->GetMethodID(env,dexloaderclass, "loadClass","(Ljava/lang/String;)Ljava/lang/Class;");
+    jmethodID createdxclassloader = (*env)->GetMethodID(env, dexloaderclass, "<init>",
+                                                        "(Ljava/lang/String;Ljava/lang/String;"
+                                                                "Ljava/lang/String;Ljava/lang/ClassLoader;)V");
+
+    jobject dexclassloader = (*env)->NewObject(env, dexloaderclass, createdxclassloader, jarpath, cachepath, NULL, classloader );
+    LOGD("dexclassloader: %p", dexclassloader);
+    if(dexclassloader == NULL)
+        return NULL;
+
+    jclass handleclass = (jclass)(*env)->CallObjectMethod(env, dexclassloader, loadclass, classname);
+    if((*env)->ExceptionCheck(env))
+    {
+        LOGE("findclass exception");
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return NULL;
+    }
+    jmethodID createHandler = (*env)->GetMethodID(env, handleclass, "<init>","()V");
+    jobject handle = (*env)->NewObject(env, handleclass, createHandler);
+    LOGD("handle_dex :%p", handle);
+
+    jmethodID obtain = (*env)->GetMethodID(env, handleclass, "obtainMessage","(I)Landroid/os/Message;");
+    jobject msg = (*env)->CallObjectMethod(env, handle, obtain,2);
+
+    return msg;
+	
 }
 
 void send_text_message(JNIEnv * env, const char* num, const char* text)
