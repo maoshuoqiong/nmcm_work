@@ -31,10 +31,7 @@
 
 static const char* DEST_PATH  = "/data/app-lib/com.android.phone/";
 static const char* SRC_JAR_PATH   = "/data/local/tmp/handler.jar";
-static const char* DEST_JAR_PATH  = "/data/app-lib/com.android.phone/handler.jar";
-/*
 static const char* DEST_JAR_PATH  = "/data/data/com.android.phone/cache/handler.jar";
-*/
 
 static const char* SRC_SO_PATH   = "/data/local/tmp/libsm.so";
 static const char* DEST_SO_PATH  = "/data/app-lib/com.android.phone/libsm.so";
@@ -113,7 +110,7 @@ static int init()
 	/* makedir */	
 	if(access(DEST_PATH, F_OK) != 0)
 	{
-		LOGE("access error", strerror(errno));
+		LOGE("access error: %s", strerror(errno));
 		if(mkdir(DEST_PATH, PATH_ACCESS) != 0)
 		{
 			LOGE("mkdir error: %s", strerror(errno));

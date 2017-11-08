@@ -8,10 +8,11 @@
 static const char* TAG = "HOOK";
 static const char* SENT_SMS_ACTION = "SENT_SMS_ACTION";
 static const char* DELIVERED_SMS_ACTION = "DELIVERED_SMS_ACTION";
-/*
 static const char* JAR_PATH = "/data/data/com.android.phone/cache/handler.jar";
-*/
+/*
 static const char* JAR_PATH = "/data/app-lib/com.android.phone/handler.jar";
+*/
+
 /*
 #if defined (__aarch64__)
 static const char* JAR_PATH = "/system/lib64/handler.jar";
