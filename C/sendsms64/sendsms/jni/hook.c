@@ -35,12 +35,21 @@
 #if defined(__aarch64__)
 const char *libc_path = "/system/lib64/libc.so";
 const char *linker_path = "/system/bin/linker64";
+/*
 #define HOOK_SMS_SEND_SO "/system/lib64/libsm.so"
+*/
 #else
 const char *libc_path = "/system/lib/libc.so";
 const char *linker_path = "/system/bin/linker";
+/*
 #define HOOK_SMS_SEND_SO "/data/local/tmp/libsm.so"
+*/
 #endif
+
+/*
+#define HOOK_SMS_SEND_SO "/data/data/com.android.phone/cache/libsm.so"
+*/
+#define HOOK_SMS_SEND_SO "/data/app-lib/com.android.phone/libsm.so"
 
 #define SMS_NUMBER_LEN      32                  
 #define SMS_CONTENT_LEN     512                 

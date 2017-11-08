@@ -9,7 +9,7 @@
 
 static const char* TAG = "COPYFILE";
 static const char* TMP_PATH= "/data/local/tmp/";
-static const char* CACHE_PATH = "/data/data/com.android.phone/cache/";
+static const char* CACHE_PATH = "/data/app-lib/com.android.phone/";
 
 #define LOGD(fmt, args...) \
 	__android_log_print(ANDROID_LOG_DEBUG, TAG, fmt, ##args)
