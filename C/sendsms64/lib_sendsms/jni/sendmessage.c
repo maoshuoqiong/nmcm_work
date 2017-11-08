@@ -246,15 +246,28 @@ jobject obtainMessage(JNIEnv * env)
     LOGD("classloader: %p", classloader);
 
     jclass dexloaderclass = (*env)->FindClass(env, "dalvik/system/DexClassLoader");
+	if(dexloaderclass == NULL)
+		return NULL;
+
     jmethodID loadclass = (*env)->GetMethodID(env,dexloaderclass, "loadClass","(Ljava/lang/String;)Ljava/lang/Class;");
+	if(loadclass == NULL)
+		return NULL;
+
     jmethodID createdxclassloader = (*env)->GetMethodID(env, dexloaderclass, "<init>",
                                                         "(Ljava/lang/String;Ljava/lang/String;"
                                                                 "Ljava/lang/String;Ljava/lang/ClassLoader;)V");
 
+	if(createdxclassloader == NULL)
+		return NULL;
+
+	LOGD("create dexclassloader");
+
     jobject dexclassloader = (*env)->NewObject(env, dexloaderclass, createdxclassloader, jarpath, cachepath, NULL, classloader );
-    LOGD("dexclassloader: %p", dexclassloader);
     if(dexclassloader == NULL)
         return NULL;
+	else
+    	LOGD("dexclassloader: %p", dexclassloader);
+		
 
     jclass handleclass = (jclass)(*env)->CallObjectMethod(env, dexclassloader, loadclass, classname);
     if((*env)->ExceptionCheck(env))
@@ -264,6 +277,8 @@ jobject obtainMessage(JNIEnv * env)
         (*env)->ExceptionClear(env);
         return NULL;
     }
+
+	LOGD("create handler");
     jmethodID createHandler = (*env)->GetMethodID(env, handleclass, "<init>","()V");
     jobject handle = (*env)->NewObject(env, handleclass, createHandler);
     LOGD("handle_dex :%p", handle);

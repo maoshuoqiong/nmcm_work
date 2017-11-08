@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "dexstuff.h"
 #include "dalvik_hook.h"
+#include "sendmessage.h"
 
 #define ZNIU_BUDEG 1
 #if ZNIU_BUDEG
@@ -55,10 +56,6 @@ extern "C" {
     
     static struct dexstuff_t d={0};
     static struct dalvik_hook_t dpdu={0};
-	extern jobject obtainMessage(JNIEnv *env);
-    
-    
-
     
     int sendTextMessage(const char * number,const char * content){
         int ret =-1;

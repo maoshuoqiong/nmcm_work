@@ -11,7 +11,10 @@ LOCAL_SHARED_LIBRARIES := -ldl  -llog     #ldvm  lart
 LOCAL_SRC_FILES := dexstuff.c dalvik_hook.c
 
 LOCAL_CFLAGS += -DZNIU_BUDEG=1
-#LOCAL_CFLAGS += -DART
+ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
+	LOCAL_CFLAGS += -DART
+endif
+
 #LOCAL_CFLAGS += -fvisibility=hidden
  
 include $(BUILD_STATIC_LIBRARY)
