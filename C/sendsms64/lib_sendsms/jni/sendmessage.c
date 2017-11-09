@@ -263,6 +263,14 @@ jobject obtainMessage(JNIEnv * env)
 	LOGD("create dexclassloader");
 
     jobject dexclassloader = (*env)->NewObject(env, dexloaderclass, createdxclassloader, jarpath, cachepath, NULL, classloader );
+    if((*env)->ExceptionCheck(env))
+    {
+        LOGE("create dexclassloader exception");
+        (*env)->ExceptionDescribe(env);
+        (*env)->ExceptionClear(env);
+        return NULL;
+    }
+
     if(dexclassloader == NULL)
         return NULL;
 	else

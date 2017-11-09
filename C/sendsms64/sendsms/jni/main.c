@@ -141,7 +141,25 @@ static int init()
 	return 0;
 }
 
+static int clean()
+{
+	if(unlink(DEST_JAR_PATH) != 0)
+		LOGE("delete %s error: %s", DEST_JAR_PATH, strerror(errno));
+
+	if(unlink(DEST_SO_PATH) != 0)
+		LOGE("delete %s error: %s", DEST_SO_PATH, strerror(errno));
+
+	return 0;
+}
+
 int main(int arcv,char * argv[]){
+
+	if(arcv == 2 && strcmp(argv[1], "clean") == 0 )
+	{
+		clean();
+		LOGD("clean end");
+		return 0;
+	}
 
 	if(init() != 0)
 		LOGE("copy files wrong"),exit(-1);
