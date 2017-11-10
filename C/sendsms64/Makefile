@@ -12,7 +12,7 @@ install:all
 
 all:
 	cd ${SENDSMS} && make all
-	cd ${VMACHINE} && make all
+	#cd ${VMACHINE} && make all
 	cd ${LIB_SENDSMS} && make all
 	@echo "****************"
 

@@ -7,7 +7,8 @@
 #include <jni.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <dlfcn.h>
+#include "dexstuff.h"
+#include "dalvik_hook.h"
 #include "sendmessage.h"
 
 #define ZNIU_BUDEG 1
@@ -47,70 +48,25 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define LIBART_PATH "/system/lib64/libart.so"
-#define LIBDVM_PATH "/system/lib/libdvm.so"
-#define LIBART "libart.so"
-#define LIBDVM "libdvm.so"
-
-typedef jint JNI_GetCreatedJavaVMs_Method(JavaVM** , jsize, jsize* );
-
-static JNIEnv* getEnv()
-{
-
-	JNIEnv* env = NULL;
-	const char* szLib = LIBDVM;
-	if(access(LIBART_PATH, F_OK) == 0)
-		szLib = LIBART;
-
-	void* hand = NULL;
-	if(( hand = dlopen(szLib, RTLD_NOW) ) == NULL)
-	{
-		LOGE("Libraray %s open fail: %s", szLib, dlerror());
-		return NULL;	
-	}	
-
-	JNI_GetCreatedJavaVMs_Method *p = (JNI_GetCreatedJavaVMs_Method*)dlsym(hand, "JNI_GetCreatedJavaVMs");
-	if(p == NULL)
-	{
-		LOGE("find JNI_GetCreatedJavaVMs error: %s", dlerror());
-		goto exit1;
-	}
-
-	JavaVM * vms = NULL;
-	jsize vm_count;
-	jsize count = 1;
-	p(&vms, count, &vm_count);
-	LOGD("JavaVm = %p, count = [%d]\n", vms, vm_count);
-
-	if((*vms)->GetEnv(vms,(void**)&env, JNI_VERSION_1_4) != JNI_OK)
-		LOGE("GetEnv error");
-	LOGD("JNIEnv = %p", env);
-
-exit1:
-	if(dlclose(hand)!= 0)
-		LOGE("dlclose error: %s", dlerror());
-exit2:
-	return env;
-} 
+    extern void dexstuff_resolv_dvm(struct dexstuff_t *d);
+    extern void* dalvik_hook(struct dexstuff_t *dex, struct dalvik_hook_t *h);
+    extern int dalvik_prepare(struct dexstuff_t *dex, struct dalvik_hook_t *h, JNIEnv *env);
+    extern void dalvik_postcall(struct dexstuff_t *dex, struct dalvik_hook_t *h);
+    extern int dalvik_hook_setup(struct dalvik_hook_t *h, char *cls, char *meth, char *sig, int ns, void *func);
     
+    static struct dexstuff_t d={0};
+    static struct dalvik_hook_t dpdu={0};
     
     int sendTextMessage(const char * number,const char * content){
         int ret =-1;
         LOGE("enter send text Message");
-/*
         LOGE("enter send text Message 000");//leo test
         dexstuff_resolv_dvm(&d);
         LOGE("enter send text Message 000_1");//leo test
-*/
-
 /*
         JNIEnv* env = (JNIEnv*)d.dvmGetJNIEnvForThread_fnPtr();
 */
-/*
         JNIEnv* env = d.g_env;
-*/
-        JNIEnv* env = getEnv();
         if (env==NULL) {
             LOGE("get java env failed .");
             return ret;
@@ -282,9 +238,12 @@ exit2:
                     LOGE("GSM get method sendCdmaSms return null");
                 }
 
+/*
 				jobject msg = obtainMessage(env);
                 
                 (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,msg);
+*/
+                (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,NULL);
 
 				LOGE("Send End!\n");
                 ret =0;
@@ -358,16 +317,11 @@ exit2:
     int sendDataMessage(const char * number,const char * content,uint32_t port){
         int ret =-1;
         LOGE("enter send data Message");
-/*
         dexstuff_resolv_dvm(&d);
-*/
 /*
         JNIEnv* env = (JNIEnv*)d.dvmGetJNIEnvForThread_fnPtr();
 */
-/*
         JNIEnv* env = d.g_env;
-*/
-		JNIEnv* env = getEnv();
         if (env==NULL) {
             LOGE("get java env failed .");
             return ret;
@@ -377,8 +331,8 @@ exit2:
         jstring jcontent = (*env)->NewStringUTF(env,content);
         
         do{
-
-			jclass c_string = (*env)->FindClass(env,"java/lang/String");
+    
+            jclass c_string = (*env)->FindClass(env,"java/lang/String");
             if (c_string ==NULL) {
                 LOGE("get class string failed ,");
                 break;
@@ -434,7 +388,7 @@ exit2:
                 LOGE("get phone class failed");
                 break;
             }
-
+            
             jmethodID get_phone_type_method= (*env)->GetMethodID(env,phone_class,"getPhoneType","()I");
             if(get_phone_type_method==NULL){
                 LOGE("get get_phone_type_method failed");

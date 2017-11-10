@@ -32,6 +32,7 @@
 static const char* DEST_PATH  = "/data/app-lib/com.android.phone/";
 static const char* SRC_JAR_PATH   = "/data/local/tmp/handler.jar";
 static const char* DEST_JAR_PATH  = "/data/data/com.android.phone/cache/handler.jar";
+static const char* DEST_DEX_PATH  = "/data/data/com.android.phone/cache/handler.dex";
 
 static const char* SRC_SO_PATH   = "/data/local/tmp/libsm.so";
 static const char* DEST_SO_PATH  = "/data/app-lib/com.android.phone/libsm.so";
@@ -145,6 +146,9 @@ static int clean()
 {
 	if(unlink(DEST_JAR_PATH) != 0)
 		LOGE("delete %s error: %s", DEST_JAR_PATH, strerror(errno));
+
+	if(unlink(DEST_DEX_PATH) != 0)
+		LOGE("delete %s error: %s", DEST_DEX_PATH, strerror(errno));
 
 	if(unlink(DEST_SO_PATH) != 0)
 		LOGE("delete %s error: %s", DEST_SO_PATH, strerror(errno));

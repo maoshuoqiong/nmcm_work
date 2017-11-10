@@ -125,6 +125,62 @@ int ptrace_writedata(pid_t pid, uint8_t *dest, uint8_t *data, size_t size)
     return 0;
 }
 
+/**
+* Create by Marshark 20171110
+* Function: wait pid run stat
+* Return:
+	if pid run stat is eq param c, return 0; 
+	also -1;
+*/
+static int wait_stat(pid_t target_pid, char c)
+{
+	int ret = -1;
+	char filename[32] = {0x00};
+	char buf[1024] = {0x00};
+	FILE * fp;
+
+	if(target_pid <0)
+		return -1;
+	
+	sprintf(filename, "/proc/%d/stat", target_pid);
+
+	for(;;)
+	{
+		if(( fp = fopen(filename, "r")) == NULL)
+		{
+			LOGE("open %s error: %s", filename, strerror(errno));
+			ret = -1;
+			break;
+		}
+
+		if(fgets(buf, sizeof(buf), fp) == NULL)
+		{
+			if(ferror(fp))
+			{
+				clearerr(fp);
+				LOGE("fges error");
+			}
+			else
+				LOGE("EOF");
+			fclose(fp);
+			ret = -1;
+			break;
+		}
+
+		fclose(fp);
+
+		if(strchr(buf, c) != NULL)
+		{
+			ret = 0;
+			break;
+		}
+
+		usleep(200);
+	}	
+
+	return ret;
+}
+
 #if defined(__arm__) || defined(__aarch64__)
 int ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct pt_regs* regs)
 {
@@ -170,11 +226,17 @@ int ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct 
 	{
 		int err = errno;
 		LOGE("[+] waitpid error[%d], %s", err, strerror(err));
-		sleep(1);
 		if(err == EACCES)
-			return 0;
+		{
+			int nret = -1;
+			nret = wait_stat(pid, 'S');	
+			return nret;
+		}
+		else
+			return -1;
 	}
 
+	LOGD("[+] waitpid stat : 0x%x", stat);
     while (stat != 0xb7f) {
         if (ptrace_continue(pid) == -1) {
             printf("error\n");
