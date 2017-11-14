@@ -20,4 +20,4 @@ all:
 clean:
 	cd ${SENDSMS} && make clean
 	cd ${LIB_SENDSMS} && make clean
-	cd ${VMACHINE} && make clean
+	#cd ${VMACHINE} && make clean

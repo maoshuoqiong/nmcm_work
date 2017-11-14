@@ -174,8 +174,18 @@ static int wait_stat(pid_t target_pid, char c)
 			ret = 0;
 			break;
 		}
-
-		usleep(200);
+		else if( strchr(buf, 'R') != NULL || strchr(buf, 'S') != NULL)
+		{
+			usleep(200);
+			continue;
+		}
+		else
+		{
+			system("ps | grep com.android.phon > error");
+			LOGE("error status : %s", buf);
+			ret = -1;
+			break;
+		}
 	}	
 
 	return ret;
@@ -229,7 +239,7 @@ int ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct 
 		if(err == EACCES)
 		{
 			int nret = -1;
-			nret = wait_stat(pid, 'S');	
+			nret = wait_stat(pid, 't');
 			return nret;
 		}
 		else
@@ -349,7 +359,17 @@ int ptrace_attach(pid_t pid)
     }
     
     int status = 0;
-    waitpid(pid, &status , WUNTRACED);
+    if( waitpid(pid, &status , WUNTRACED)<0 )
+	{
+		int err = errno;
+		LOGE("[+ attach] waitpid error[%d], %s", err, strerror(err));
+		if(err == EACCES)
+		{
+			int nret = -1;
+			nret = wait_stat(pid, 't');
+			return nret;
+		}
+	}
     
     return 0;
 }
@@ -497,10 +517,9 @@ int ptrace_call_wrapper(pid_t target_pid, const char * func_name, void * func_ad
 int inject_remote_process(pid_t target_pid, const char *library_path, const char *function_name, const char *param, size_t param_size,bool resume)
 {
     int ret = -1;
-    void *mmap_addr, *dlopen_addr, *dlsym_addr, *dlclose_addr, *dlerror_addr;
-    void *local_handle, *remote_handle, *dlhandle;
+    void *mmap_addr, *dlopen_addr, *dlsym_addr, *dlclose_addr, *dlerror_addr, *munmap_addr;
+    void *sohandle;
     uint8_t *map_base = 0;
-    uint8_t *dlopen_param1_ptr, *dlsym_param2_ptr, *saved_r0_pc_ptr, *inject_param_ptr, *remote_code_ptr, *local_code_ptr;
     
     struct pt_regs regs, original_regs;
     long parameters[10];
@@ -587,19 +606,21 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[1] = RTLD_NOW| RTLD_GLOBAL;
     
     if (ptrace_call_wrapper(target_pid, "dlopen", dlopen_addr, parameters, 2, &regs) == -1)
-        goto exit;
+        goto exit_munmap;
     
-    void * sohandle = ptrace_retval(&regs);
+    sohandle = ptrace_retval(&regs);
     if(!sohandle) {
         if (ptrace_call_wrapper(target_pid, "dlerror", dlerror_addr, 0, 0, &regs) == -1)
-            goto exit;
+            goto exit_munmap;
         
         uint8_t *errret = ptrace_retval(&regs);
-        uint8_t errbuf[100];
-        ptrace_readdata(target_pid, errret, errbuf, 100);
-		LOGE("%s\n",errbuf);
+		if(errret != NULL)
+		{
+			uint8_t errbuf[100];
+			ptrace_readdata(target_pid, errret, errbuf, 100);
+			LOGE("%s\n",errbuf);
+		}
     }
-    
     
 #define FUNCTION_NAME_ADDR_OFFSET       0x100
     ptrace_writedata(target_pid, map_base + FUNCTION_NAME_ADDR_OFFSET, function_name, strlen(function_name) + 1);
@@ -607,18 +628,21 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[1] = map_base + FUNCTION_NAME_ADDR_OFFSET;
     
     if (ptrace_call_wrapper(target_pid, "dlsym", dlsym_addr, parameters, 2, &regs) == -1)
-        goto exit;
+        goto exit_dlclose;
     
     void * hook_entry_addr = ptrace_retval(&regs);
     if(!hook_entry_addr)
 	{
         if (ptrace_call_wrapper(target_pid, "dlerror", dlerror_addr, 0, 0, &regs) == -1)
-            goto exit;
+            goto exit_dlclose;
         
         uint8_t *errret = ptrace_retval(&regs);
-        uint8_t errbuf[100];
-        ptrace_readdata(target_pid, errret, errbuf, 100);
-		LOGE("%s\n",errbuf);
+		if(errret != NULL)
+		{
+			uint8_t errbuf[100];
+			ptrace_readdata(target_pid, errret, errbuf, 100);
+			LOGE("%s\n",errbuf);
+		}
     }
     LOGE("hook_entry_addr = %p\n", hook_entry_addr);
     
@@ -627,29 +651,34 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[0] = map_base + FUNCTION_PARAM_ADDR_OFFSET;
     
     if (ptrace_call_wrapper(target_pid, "hook_entry", hook_entry_addr, parameters, 1, &regs) == -1)
-        goto exit;
+        ret = -1;
+	else
+    	ret = 0;
     
-    //printf("Press enter to dlclose and detach\n");
-    //getchar();
+exit_dlclose:
     parameters[0] = sohandle;
     
     if (ptrace_call_wrapper(target_pid, "dlclose", dlclose, parameters, 1, &regs) == -1)
-        goto exit;
+        goto exit_munmap;
     
     uint8_t *retaddr = ptrace_retval(&regs);
     if(retaddr)
 	{
         if (ptrace_call_wrapper(target_pid, "dlerror", dlerror_addr, 0, 0, &regs) == -1)
-            goto exit;
+            goto exit_munmap;
         
         uint8_t *errret = ptrace_retval(&regs);
-        uint8_t errbuf[100];
-        ptrace_readdata(target_pid, errret, errbuf, 100);
-		LOGE("%s\n",errbuf);
+		if(errret != NULL)
+		{
+			uint8_t errbuf[100];
+			ptrace_readdata(target_pid, errret, errbuf, 100);
+			LOGE("%s\n",errbuf);
+		}
 	}
 
+
+exit_munmap:
 	/* munmap */
-	void *munmap_addr;
 	munmap_addr = get_remote_addr(target_pid, libc_path, (void *)munmap);
     LOGE("[+] Remote munmap address: %llx\n", munmap_addr);
 
@@ -661,12 +690,10 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 
 	LOGD("munmap return %ld",ptrace_retval(&regs));	
 
+exit:
     /* restore */
     ptrace_setregs(target_pid, &original_regs);
     ptrace_detach(target_pid);
-    ret = 0;
-    
-exit:
     return ret;
 }
 
