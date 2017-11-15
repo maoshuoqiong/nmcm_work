@@ -62,7 +62,7 @@ int ptrace_readdata(pid_t pid,  uint8_t *src, uint8_t *buf, size_t size)
 {
     long i, j, remain;
     uint8_t *laddr;
-    size_t bytes_width = sizeof(long);
+    const size_t bytes_width = sizeof(long);
     
     union u {
         long val;
@@ -93,7 +93,7 @@ int ptrace_writedata(pid_t pid, uint8_t *dest, uint8_t *data, size_t size)
 {
     long i, j, remain;
     uint8_t *laddr;
-    size_t bytes_width = sizeof(long);
+    const size_t bytes_width = sizeof(long);
     
     union u {
         long val;
