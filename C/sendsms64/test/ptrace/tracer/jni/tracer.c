@@ -14,6 +14,7 @@
 #include <sys/uio.h>
 #include <sys/prctl.h>
 #include <sys/capability.h>
+#include <errno.h>
 
 #include "log.h"
 #include "tracer.h"
@@ -288,6 +289,75 @@ long ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct
 #error "Not supported"
 #endif
 
+int ptrace_call_tmp(pid_t pid, uintptr_t addr, long *params, int num_params, struct pt_regs* regs)
+{
+    int i;
+#if defined(__arm__)
+    int num_param_registers = 4;
+#elif defined(__aarch64__)
+    int num_param_registers = 8;
+#endif
+    
+    for (i = 0; i < num_params && i < num_param_registers; i ++) {
+        regs->uregs[i] = params[i];
+    }
+    
+    //
+    // push remained params onto stack
+    //
+    if (i < num_params) {
+        regs->ARM_sp -= (num_params - i) * sizeof(long) ;
+        ptrace_writedata(pid, (void *)regs->ARM_sp, (uint8_t *)&params[i], (num_params - i) * sizeof(long));
+    }
+    
+    regs->ARM_pc = addr;
+    if (regs->ARM_pc & 1) {
+        /* thumb */
+        regs->ARM_pc &= (~1u);
+        regs->ARM_cpsr |= CPSR_T_MASK;
+    } else {
+        /* arm */
+        regs->ARM_cpsr &= ~CPSR_T_MASK;
+    }
+    
+    regs->ARM_lr = 0;
+    
+    if (ptrace_setregs(pid, regs) == -1
+        || ptrace_continue(pid) == -1) {
+        printf("error\n");
+        return -1;
+    }
+
+	sleep(10);
+    
+    int stat = 0;
+    if(waitpid(pid, &stat, WUNTRACED)<0)
+	{
+		int err = errno;
+		LOGE("[+] waitpid error[%d], %s", err, strerror(err));
+		if(err == EACCES)
+		{
+			int nret = -1;
+			nret = wait_stat(pid, 't');
+			return nret;
+		}
+		else
+			return -1;
+	}
+
+	LOGD("[+] waitpid stat : 0x%x", stat);
+    while (stat != 0xb7f) {
+        if (ptrace_continue(pid) == -1) {
+            printf("error\n");
+            return -1;
+        }
+        waitpid(pid, &stat, WUNTRACED);
+    }
+    
+    return 0;
+}
+
+
 int ptrace_getregs(pid_t pid, struct pt_regs * regs)
 {
 #if defined (__aarch64__)
@@ -510,6 +580,19 @@ int ptrace_call_wrapper(pid_t target_pid, const char * func_name, void * func_ad
     return 0;
 }
 
+int ptrace_call_wrapper_tmp(pid_t target_pid, const char * func_name, void * func_addr, long * parameters, int param_num, struct pt_regs * regs)
+{
+    LOGE("[+] Calling %s in target process.\n", func_name);
+    if (ptrace_call_tmp(target_pid, (uintptr_t)func_addr, parameters, param_num, regs) == -1)
+        return -1;
+     
+    if (ptrace_getregs(target_pid, regs) == -1)
+        return -1;
+    LOGE("[+] Target process returned from %s, return value=%llx, pc=%llx \n",
+                func_name, ptrace_retval(regs), ptrace_ip(regs));
+    return 0;
+}
+
 int inject_remote_process(pid_t target_pid, const char *library_path, const char *function_name, const char *param, size_t param_size,bool resume)
 {
     int ret = -1;
@@ -549,7 +632,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
         goto exit;
     
     if (ptrace_getregs(target_pid, &regs) == -1)
-        goto exit;
+        goto exit_detach;
     
     /* save original registers */
     memcpy(&original_regs, &regs, sizeof(regs));
@@ -566,11 +649,11 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[5] = 0; //offset
     
     if (ptrace_call_wrapper(target_pid, "mmap", mmap_addr, parameters, 6, &regs) == -1)
-        goto exit;
+        goto exit_restore;
     
     map_base = ptrace_retval(&regs);
 	if(map_base == NULL)
-		goto exit;
+		goto exit_restore;
 
 /*
 	void *tmp_handle = dlopen(library_path, RTLD_NOW|RTLD_GLOBAL);
@@ -648,6 +731,9 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[0] = map_base + FUNCTION_PARAM_ADDR_OFFSET;
 */
     
+/*
+    if (ptrace_call_wrapper_tmp(target_pid, "hook_entry", hook_entry_addr, NULL, 0, &regs) == -1)
+*/
     if (ptrace_call_wrapper(target_pid, "hook_entry", hook_entry_addr, NULL, 0, &regs) == -1)
         ret = -1;
 	else
@@ -684,19 +770,26 @@ exit_munmap:
 	parameters[1] = 0x4000; /* size of mmap */
 
 	if(ptrace_call_wrapper(target_pid, "munmap", munmap_addr, parameters, 2, &regs) == -1)
-		goto exit;
+		goto exit_restore;
 
 	LOGD("munmap return %ld",ptrace_retval(&regs));	
 
-exit:
+exit_restore:
     /* restore */
     ptrace_setregs(target_pid, &original_regs);
+
+exit_detach:
     ptrace_detach(target_pid);
+
+exit:
     return ret;
 }
 
 int tracer(const char* process, const char* so_path)
 {
+	if(process == NULL || so_path == NULL)
+		return -1;
+
 	pid_t target_pid = find_pid_of(process);
 	if(-1 == target_pid)
 	{

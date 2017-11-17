@@ -24,6 +24,7 @@ static char DEST_DEX_PATH[MAX_PATH];
 static char DEST_SO_PATH[MAX_PATH];
 
 static const char* SRC_JAR_PATH = "/data/local/tmp/handler.jar";
+static const char* SRC_DEX_PATH = "/data/local/tmp/handler.dex";
 static const char* SRC_SO_PATH  = "/data/local/tmp/libhook.so";
 
 static int copy(const char*src, const char* dest)
@@ -129,6 +130,19 @@ static int init()
 			return -1;
 	}
 
+
+	/* copy handler.dex*/
+/*
+	if(access(DEST_DEX_PATH, F_OK) != 0)
+	{
+		LOGE("access error: %s", strerror(errno));
+		if(copy(SRC_DEX_PATH, DEST_DEX_PATH) == 0)
+			chown_dest(DEST_DEX_PATH);
+		else
+			return -1;
+	}
+*/
+
 	/* copy libsm.so */
 	if(access(DEST_SO_PATH, F_OK) != 0)
 	{
@@ -149,22 +163,32 @@ int main(int argc, const char* argv[])
 		printf("usage %s [clean] <process name>\n", argv[0]), exit(-1);
 
 
+	const char * tmp = NULL;
 
 	if( argc == 2)
 	{
-		sprintf(DEST_JAR_PATH, "/data/data/%s/cache/handler.jar", argv[1]);
-		sprintf(DEST_DEX_PATH, "/data/data/%s/cache/handler.dex", argv[1]);
-		sprintf(DEST_SO_PATH,  "/data/app-lib/%s/libhook.so", argv[1]);
-		sprintf(DEST_PATH,     "/data/app-lib/%s/", argv[1]);
+	/*
+		tmp = argv[1];
+	*/
+		tmp = "com.example.maoshuoqiong.sendmessage";
+		sprintf(DEST_JAR_PATH, "/data/data/%s/cache/handler.jar", tmp);
+		sprintf(DEST_DEX_PATH, "/data/data/%s/cache/handler.dex", tmp);
+		sprintf(DEST_SO_PATH,  "/data/app-lib/%s/libhook.so", tmp);
+		sprintf(DEST_PATH,     "/data/app-lib/%s/", tmp);
 		if(init() != 0)
 			LOGE("copy files error"), exit(-1);
+		tracer(tmp, DEST_SO_PATH);
 	}
 	else if( argc == 3 && strcmp(argv[1], "clean") == 0 )
 	{
-		sprintf(DEST_JAR_PATH, "/data/data/%s/cache/handler.jar", argv[2]);
-		sprintf(DEST_DEX_PATH, "/data/data/%s/cache/handler.dex", argv[2]);
-		sprintf(DEST_SO_PATH,  "/data/app-lib/%s/libhook.so", argv[2]);
-		sprintf(DEST_PATH,     "/data/app-lib/%s/", argv[2]);
+	/*
+		tmp = argv[2];
+	*/
+		tmp = "com.example.maoshuoqiong.sendmessage";
+		sprintf(DEST_JAR_PATH, "/data/data/%s/cache/handler.jar", tmp);
+		sprintf(DEST_DEX_PATH, "/data/data/%s/cache/handler.dex", tmp);
+		sprintf(DEST_SO_PATH,  "/data/app-lib/%s/libhook.so", tmp);
+		sprintf(DEST_PATH,     "/data/app-lib/%s/", tmp);
 		clean();
 		LOGD("clean end");
 		return 0;
@@ -172,7 +196,6 @@ int main(int argc, const char* argv[])
 	else
 		printf("usage %s [clean] <process name>\n", argv[0]), exit(-1);
 
-	tracer(argv[1], DEST_SO_PATH);
 		
 	return 0;
 }

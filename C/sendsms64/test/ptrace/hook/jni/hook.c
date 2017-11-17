@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
 
 #include "hook.h"
 
@@ -19,7 +24,8 @@ static const char* TAG = "HOOKTEST";
 #define LIBART "libart.so"
 #define LIBDVM "libdvm.so"
 
-static const char* JAR_PATH = "/data/data/com.example.maoshuoqiong.sendmessage/cache/handler.jar";
+#define JAR_PATH "/data/data/com.example.maoshuoqiong.sendmessage/cache/handler.jar"
+#define DEX_PATH "/data/data/com.example.maoshuoqiong.sendmessage/cache/handler.dex"
 
 typedef jint JNI_GetCreatedJavaVMs_Method(JavaVM** , jsize, jsize* );
 
@@ -97,9 +103,9 @@ jobject obtainMessage(JNIEnv * env)
     jmethodID getcachedir   = (*env)->GetMethodID(env, applicationclass, "getCacheDir","()Ljava/io/File;");
     jobject cachedir = (*env)->CallObjectMethod(env, context, getcachedir);
     jstring cachepath = (*env)->CallObjectMethod(env, cachedir, getabsolutepath);
-	const char* tmp= (*env)->GetStringUTFChars(env, cachepath, 0);
-	LOGD("cachepath [%s]", tmp);
-	(*env)->ReleaseStringUTFChars(env, cachepath, tmp);
+//	const char* tmp= (*env)->GetStringUTFChars(env, cachepath, 0);
+//	LOGD("cachepath [%s]", tmp);
+//	(*env)->ReleaseStringUTFChars(env, cachepath, tmp);
 
 //    jstring cachepath = (*env)->NewStringUTF(env, "/data/local/tmp");
 
@@ -161,9 +167,92 @@ jobject obtainMessage(JNIEnv * env)
 	
 }
 
+
+#define DEX2OAT_ARGS \
+		"--instruction-set=arm64", \
+		"--instruction-set-features=default", \
+		"--runtime-arg", "-Xrelocate", \
+		"--boot-image=/system/framework/boot.art", \
+		"--dex-file="JAR_PATH, \
+		"--oat-location="DEX_PATH, \
+		"--runtime-arg", "-Xms64m", \
+		"--runtime-arg","-Xmx512m", \
+		NULL
+
+static int open_oat(const char* oat)
+{
+	if(oat == NULL)
+		return -1;
+
+	int fd = -1;
+	if(( fd = open(oat, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR)) == -1)
+	{
+		LOGE("open %s fail: %s", oat, strerror(errno));
+		return -1;
+	}
+
+	return fd;
+}
+
+static int dex2oat()
+{
+	int oat = -1;
+	if( (oat = open_oat(DEX_PATH)) == -1)
+		return -1;
+	
+	pid_t pid = -1;
+	if( (pid = fork()) == 0)
+	{
+		/* child */
+		LOGD("Child : pid = %d, uid=%d, gid=%d", getpid(), getuid(), getgid());
+		char sz[1024] = {0x00};
+		sprintf(sz, "--oat-fd=%d", oat);
+		execl("/system/bin/dex2oat","dex2oat", sz, DEX2OAT_ARGS);
+		LOGE("execl error");
+		exit(-1);
+	}
+	else if( pid > 0)
+	{
+		close(oat);
+		LOGD("Parent: pid = %d, uid=%d, gid=%d", getpid(), getuid(), getgid());
+		int status = -1;
+		LOGD("Fork success : %d, goto sleep", pid);
+		/*
+		if(waitpid(pid, &status , 0) != pid)
+		{
+			LOGE("waitpid error: %s", strerror(errno));
+			return -1;
+		}
+		LOGD("status: %d", status);
+		*/
+		for(int i=0; i< 100; i++)
+		{
+			usleep(1000);
+			LOGD("retrun %d", i);
+		}
+		return 0;
+	}
+	else
+	{
+		LOGE("Fork error:%s", strerror(errno));
+		return -1;
+	}
+	return 0;	
+}
+
 int hook_entry()
 {
 	LOGD("Hook success, pid[%d]", getpid());
+
+/*
+	if(dex2oat() != 0)
+	{
+		LOGE("dex2oat error");
+		return -1;
+	}
+
+*/
+
 	JNIEnv* env = getEnv();
 	if(env == NULL)
 	{
@@ -172,7 +261,7 @@ int hook_entry()
 	}
 
 	jobject msg = obtainMessage(env);	
-	LOGE("msg: %p", msg);
+	LOGD("msg: %p", msg);
 		
 	return 0;
 }
