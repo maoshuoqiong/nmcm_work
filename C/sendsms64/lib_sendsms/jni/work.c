@@ -49,7 +49,8 @@
 extern "C" {
 #endif
 
-#define LIBART_PATH "/system/lib64/libart.so"
+#define LIBART_PATH "/system/lib/libart.so"
+#define LIBART_PATH64 "/system/lib64/libart.so"
 #define LIBDVM_PATH "/system/lib/libdvm.so"
 #define LIBART "libart.so"
 #define LIBDVM "libdvm.so"
@@ -61,7 +62,7 @@ static JNIEnv* getEnv()
 
 	JNIEnv* env = NULL;
 	const char* szLib = LIBDVM;
-	if(access(LIBART_PATH, F_OK) == 0)
+	if(access(LIBART_PATH64, F_OK) == 0 || access(LIBART_PATH, F_OK) == 0)
 		szLib = LIBART;
 
 	void* hand = NULL;
