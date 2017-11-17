@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <dlfcn.h>
+#include <string.h>
 #include "sendmessage.h"
 
 #define ZNIU_BUDEG 1

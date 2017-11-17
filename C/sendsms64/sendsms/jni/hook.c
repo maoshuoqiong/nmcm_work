@@ -10,10 +10,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <elf.h>
-#include "log.h"
 #include <sys/uio.h>
 #include <sys/prctl.h>
 #include <sys/capability.h>
+#include <errno.h>
+
+#include "log.h"
 
 #if defined(__i386__)
 #define pt_regs         user_regs_struct
@@ -553,7 +555,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
         goto exit;
     
     if (ptrace_getregs(target_pid, &regs) == -1)
-        goto exit;
+        goto exit_detach;
     
     /* save original registers */
     memcpy(&original_regs, &regs, sizeof(regs));
@@ -570,11 +572,11 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     parameters[5] = 0; //offset
     
     if (ptrace_call_wrapper(target_pid, "mmap", mmap_addr, parameters, 6, &regs) == -1)
-        goto exit;
+        goto exit_restore;
     
     map_base = ptrace_retval(&regs);
 	if(map_base == NULL)
-		goto exit;
+		goto exit_restore;
 
 /*
 	void *tmp_handle = dlopen(library_path, RTLD_NOW|RTLD_GLOBAL);
@@ -620,6 +622,8 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 			ptrace_readdata(target_pid, errret, errbuf, 100);
 			LOGE("%s\n",errbuf);
 		}
+		
+		goto exit_munmap;
     }
     
 #define FUNCTION_NAME_ADDR_OFFSET       0x100
@@ -643,6 +647,8 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 			ptrace_readdata(target_pid, errret, errbuf, 100);
 			LOGE("%s\n",errbuf);
 		}
+
+		goto exit_dlclose;
     }
     LOGE("hook_entry_addr = %p\n", hook_entry_addr);
     
@@ -686,14 +692,18 @@ exit_munmap:
 	parameters[1] = 0x4000; /* size of mmap */
 
 	if(ptrace_call_wrapper(target_pid, "munmap", munmap_addr, parameters, 2, &regs) == -1)
-		goto exit;
+		goto exit_restore;
 
 	LOGD("munmap return %ld",ptrace_retval(&regs));	
 
-exit:
+exit_restore:
     /* restore */
     ptrace_setregs(target_pid, &original_regs);
+
+exit_detach:
     ptrace_detach(target_pid);
+
+exit:
     return ret;
 }
 
