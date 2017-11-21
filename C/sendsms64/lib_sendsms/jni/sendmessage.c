@@ -3,7 +3,9 @@
 //
 
 #include <jni.h>
+#include <string.h>
 #include "log.h"
+#include "sendmessage.h"
 
 static const char* TAG = "HOOK";
 static const char* SENT_SMS_ACTION = "SENT_SMS_ACTION";

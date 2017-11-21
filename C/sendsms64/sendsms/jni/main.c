@@ -157,7 +157,7 @@ static int switch_user()
 	struct __user_cap_header_struct header;
 	struct __user_cap_data_struct data;
 	
-	header.version = _LINUX_CAPABILITY_VERSION_3;
+	header.version = _LINUX_CAPABILITY_VERSION;
 	header.pid = getpid();
 
 	if(capget(&header, &data) != 0)
@@ -230,6 +230,7 @@ static int init()
 	if(copy_files() != 0)
 		return -1;
 
+	return 0;
 
 	/* dex2oat */
 	if(access(DEST_DEX_PATH, F_OK) == 0) /* .dex file already exist */

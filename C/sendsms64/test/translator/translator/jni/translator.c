@@ -22,8 +22,16 @@
 #define JAR_PATH "/data/data/com.example.maoshuoqiong.sendmessage/cache/handler.jar"
 #define DEX_PATH "/data/data/com.example.maoshuoqiong.sendmessage/cache/handler.dex"
 
+#if defined(__aarch64__)
+#define ARCH "arm64"
+#elif defined(__arm__)
+#define ARCH "arm"
+#else
+#error Not support
+#endif
+
 #define DEX2OAT_ARGS \
-		"--instruction-set=arm64", \
+		"--instruction-set="ARCH, \
 		"--instruction-set-features=default", \
 		"--runtime-arg", "-Xrelocate", \
 		"--boot-image=/system/framework/boot.art", \
@@ -81,8 +89,21 @@ static int switch_user()
 
 	struct __user_cap_header_struct header;
 	struct __user_cap_data_struct data;
-	
+
+	header.version = _LINUX_CAPABILITY_VERSION;
+
+/*
+#if defined(_LINUX_CAPABILITY_VERSION_3)
 	header.version = _LINUX_CAPABILITY_VERSION_3;
+#elif defined(_LINUX_CAPABILITY_VERSION_2)
+	header.version = _LINUX_CAPABILITY_VERSION_2;
+#elif defined(_LINUX_CAPABILITY_VERSION_1)
+	header.version = _LINUX_CAPABILITY_VERSION_1;	
+#else
+#error Not support
+#endif
+*/
+
 	header.pid = getpid();
 	
 	if(capget(&header, &data) != 0)
@@ -159,12 +180,7 @@ static int copy_file()
 	if(access(JAR_PATH, F_OK) != 0)
 	{
 		LOGE("access error: %s", strerror(errno));
-		if(copy(SRC_JAR_PATH, JAR_PATH) == 0)
-		{
-			/*chown_dest(JAR_PATH); */
-			return 0;
-		}
-		else
+		if(copy(SRC_JAR_PATH, JAR_PATH) != 0)
 			return -1;
 	}
 

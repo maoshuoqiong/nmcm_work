@@ -183,7 +183,9 @@ static int wait_stat(pid_t target_pid, char c)
 		}
 		else
 		{
+			/*
 			system("ps | grep com.android.phon > error");
+			*/
 			LOGE("error status : %s", buf);
 			ret = -1;
 			break;
