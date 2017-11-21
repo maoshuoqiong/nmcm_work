@@ -3,6 +3,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <errno.h>
 
 static const char* PROCESS_NAME = "com.android.phone";
 
@@ -49,6 +50,47 @@ static pid_t find_pid_of(const char* process_name)
 	return pid;
 }
 
+static int get_status(pid_t pid)
+{
+	int ret = 0;
+	char filename[32] = {0x00};
+	char buff[4096] = {0x00};	
+
+	sprintf(filename, "/proc/%d/status", pid);
+
+	FILE *fp = NULL;
+
+	if(( fp = fopen(filename, "r")) == NULL)
+	{
+		printf("open %s error: %s\n", filename, strerror(errno));
+		return -1;
+	}
+
+	for(;;)
+	{
+		if(fgets(buff, sizeof(buff), fp) == NULL)
+		{
+			if(ferror(fp))
+			{
+				clearerr(fp);
+				printf("fgets error\n");
+				ret = -1;
+			}
+			else
+				printf("EOF\n");
+			break;
+		}
+		else
+		{
+			printf("%s\n", buff);
+		}
+	}
+
+	fclose(fp);
+
+	return ret;
+}
+
 static int wait_stat(pid_t target_pid, char c)
 {
 	int ret = -1;
@@ -90,6 +132,7 @@ static int wait_stat(pid_t target_pid, char c)
 		if(strchr(buf, c)!= NULL)	
 		{
 			ret = 0;
+			get_status(target_pid);
 			break;
 		}
 
@@ -112,8 +155,8 @@ int main(int argc, const char* argv[])
 
 	printf("pid: %d\n", target_pid);
 
-	if(wait_stat(target_pid, 'R') == 0)
-		printf("stat is S\n");
+	if(wait_stat(target_pid, 't') == 0)
+		printf("stat is t\n");
 	else
 		printf("error\n");
 	return 0;
