@@ -60,6 +60,10 @@ const char *linker_path = "/system/bin/linker";
 #define true 1
 #define false 0
 
+extern int ptrace_getregs(pid_t pid, struct pt_regs * regs);
+extern int ptrace_continue(pid_t pid);
+extern int ptrace_setregs(pid_t pid, struct pt_regs * regs);
+
 int ptrace_readdata(pid_t pid,  uint8_t *src, uint8_t *buf, size_t size)
 {
     long i, j, remain;
@@ -128,6 +132,84 @@ int ptrace_writedata(pid_t pid, uint8_t *dest, uint8_t *data, size_t size)
 }
 
 /**
+* Create by Marshark 20171121
+* Function: get process status
+*
+*/
+static int get_status(pid_t pid)
+{
+	int ret = 0;
+	char filename[32] = {0x00};
+	char buff[4096] = {0x00};	
+
+	sprintf(filename, "/proc/%d/status", pid);
+
+	FILE *fp = NULL;
+
+	if(( fp = fopen(filename, "r")) == NULL)
+	{
+		printf("open %s error: %s\n", filename, strerror(errno));
+		return -1;
+	}
+
+	for(;;)
+	{
+		if(fgets(buff, sizeof(buff), fp) == NULL)
+		{
+			if(ferror(fp))
+			{
+				clearerr(fp);
+				printf("fgets error\n");
+				ret = -1;
+			}
+			else
+				printf("EOF\n");
+			break;
+		}
+		else
+		{
+			printf("%s\n", buff);
+		}
+	}
+
+	fclose(fp);
+
+	printf("*************\n");
+	sprintf(filename, "/proc/%d/stat", pid);
+	ret = 0;
+	
+	if(( fp = fopen(filename, "r")) == NULL)
+	{
+		printf("open %s error: %s\n", filename, strerror(errno));
+		return -1;
+	}
+
+	for(;;)
+	{
+		if(fgets(buff, sizeof(buff), fp) == NULL)
+		{
+			if(ferror(fp))
+			{
+				clearerr(fp);
+				printf("fgets error\n");
+				ret = -1;
+			}	
+			else
+				printf("EOF\n");
+			break;
+		}
+		else
+			printf("%s\n", buff);
+	}
+
+	fclose(fp);
+	
+	printf("*************\n");	
+
+	return ret;
+}
+
+/**
 * Create by Marshark 20171110
 * Function: wait pid run stat
 * Return:
@@ -173,10 +255,29 @@ static int wait_stat(pid_t target_pid, char c)
 
 		if(strchr(buf, c) != NULL)
 		{
+/*
+			struct pt_regs regs;
+			if(ptrace_getregs(target_pid, &regs) == -1)
+			{
+				ret = -1;
+				break;
+			}
+
+			if(regs.ARM_r0 != 0)
+			{
+				if(ptrace_continue(target_pid) == -1)
+				{
+					ret = -1;
+					break;
+				}
+				continue;
+			}
+		
+*/
 			ret = 0;
 			break;
 		}
-		else if( strchr(buf, 'R') != NULL || strchr(buf, 'S') != NULL)
+		else if( strchr(buf, 'R') != NULL || strchr(buf, 'S') != NULL || strchr(buf,'D') != NULL)
 		{
 			usleep(200);
 			continue;
@@ -252,6 +353,7 @@ int ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct 
 
 	LOGD("[+] waitpid stat : 0x%x", stat);
     while (stat != 0xb7f) {
+		/* get_status(pid); */
         if (ptrace_continue(pid) == -1) {
             printf("error\n");
             return -1;
