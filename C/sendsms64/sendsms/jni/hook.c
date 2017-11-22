@@ -64,6 +64,35 @@ extern int ptrace_getregs(pid_t pid, struct pt_regs * regs);
 extern int ptrace_continue(pid_t pid);
 extern int ptrace_setregs(pid_t pid, struct pt_regs * regs);
 
+#if defined(__aarch64__)
+static void print_regs(struct user_pt_regs *regs)
+{
+	if(regs == NULL) return;
+
+	LOGD("======================");
+	for(int i=0; i< 31; i++)
+		LOGD("regs[%d] = [%llx]", i, regs->regs[i]);
+
+	LOGD("sp = [%llx]", regs->sp);
+	LOGD("pc = [%llx]", regs->pc);
+	LOGD("pstate = [%llx]", regs->pstate);
+	LOGD("======================");
+}
+#elif defined(__arm__)
+static void print_regs(struct pt_regs *regs)
+{
+	if(regs == NULL) return;
+
+	LOGD("======================");
+	for(int i=0; i< 18; i++)
+		LOGD("regs[%d] = [%llx]", i, regs->uregs[i]);
+
+	LOGD("======================");
+}
+#else
+#error No supported
+#endif
+
 int ptrace_readdata(pid_t pid,  uint8_t *src, uint8_t *buf, size_t size)
 {
     long i, j, remain;
@@ -212,11 +241,12 @@ static int get_status(pid_t pid)
 /**
 * Create by Marshark 20171110
 * Function: wait pid run stat
+* Params: flag_call, if nozero called by ptrace_call 
 * Return:
 	if pid run stat is eq param c, return 0; 
 	also -1;
 */
-static int wait_stat(pid_t target_pid, char c)
+static int wait_stat(pid_t target_pid, char c, int flag_call)
 {
 	int ret = -1;
 	char filename[32] = {0x00};
@@ -255,25 +285,34 @@ static int wait_stat(pid_t target_pid, char c)
 
 		if(strchr(buf, c) != NULL)
 		{
-/*
-			struct pt_regs regs;
-			if(ptrace_getregs(target_pid, &regs) == -1)
-			{
-				ret = -1;
-				break;
-			}
 
-			if(regs.ARM_r0 != 0)
+			if(flag_call)
 			{
-				if(ptrace_continue(target_pid) == -1)
+				/* called by ptrace_call 
+				* need to check if ARM_lr eq 0,
+				* becuse ARM_lr is set 0 by ptrace_setregs
+				*/
+				struct pt_regs regs;
+				if(ptrace_getregs(target_pid, &regs) == -1)
 				{
 					ret = -1;
 					break;
 				}
-				continue;
+/*
+				print_regs(&regs);
+*/
+
+				if(regs.ARM_lr != 0)
+				{
+					if(ptrace_continue(target_pid) == -1)
+					{
+						ret = -1;
+						break;
+					}
+					continue;
+				}
 			}
 		
-*/
 			ret = 0;
 			break;
 		}
@@ -344,7 +383,7 @@ int ptrace_call(pid_t pid, uintptr_t addr, long *params, int num_params, struct 
 		if(err == EACCES)
 		{
 			int nret = -1;
-			nret = wait_stat(pid, 't');
+			nret = wait_stat(pid, 't', 1);
 			return nret;
 		}
 		else
@@ -472,7 +511,7 @@ int ptrace_attach(pid_t pid)
 		if(err == EACCES)
 		{
 			int nret = -1;
-			nret = wait_stat(pid, 't');
+			nret = wait_stat(pid, 't', 0);
 			return nret;
 		}
 	}
@@ -500,7 +539,7 @@ void* get_module_base(pid_t pid, const char* module_name)
     
     if (pid < 0) {
         /* self process */
-        snprintf(filename, sizeof(filename), "/proc/self/maps", pid);
+        snprintf(filename, sizeof(filename), "/proc/self/maps");
     } else {
         snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
     }
@@ -615,6 +654,7 @@ int ptrace_call_wrapper(pid_t target_pid, const char * func_name, void * func_ad
      
     if (ptrace_getregs(target_pid, regs) == -1)
         return -1;
+
     LOGE("[+] Target process returned from %s, return value=%llx, pc=%llx \n",
                 func_name, ptrace_retval(regs), ptrace_ip(regs));
     return 0;
