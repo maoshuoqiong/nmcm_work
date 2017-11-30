@@ -85,7 +85,7 @@ static void print_regs(struct pt_regs *regs)
 
 	LOGD("======================");
 	for(int i=0; i< 18; i++)
-		LOGD("regs[%d] = [%llx]", i, regs->uregs[i]);
+		LOGD("regs[%d] = [%lx]", i, regs->uregs[i]);
 
 	LOGD("======================");
 }
@@ -302,7 +302,7 @@ static int wait_stat(pid_t target_pid, char c, int flag_call)
 				print_regs(&regs);
 */
 
-				if(regs.ARM_lr != 0)
+				if(regs.ARM_lr != 0 && regs.ARM_pc != 0)
 				{
 					if(ptrace_continue(target_pid) == -1)
 					{
@@ -703,7 +703,8 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     
     /* save original registers */
     memcpy(&original_regs, &regs, sizeof(regs));
-    
+	//print_regs(&original_regs);
+
     mmap_addr = get_remote_addr(target_pid, libc_path, (void *)mmap);
     LOGE("[+] Remote mmap address: %llx\n", mmap_addr);
     
@@ -736,7 +737,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 	tmp_entry_addr(NULL);
 	dlclose(tmp_handle);
 */
-    
+
     dlopen_addr = get_remote_addr( target_pid, linker_path, (void *)dlopen );
     dlsym_addr = get_remote_addr( target_pid, linker_path, (void *)dlsym );
     dlclose_addr = get_remote_addr( target_pid, linker_path, (void *)dlclose );
@@ -769,7 +770,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
 		
 		goto exit_munmap;
     }
-    
+
 #define FUNCTION_NAME_ADDR_OFFSET       0x100
     ptrace_writedata(target_pid, map_base + FUNCTION_NAME_ADDR_OFFSET, function_name, strlen(function_name) + 1);
     parameters[0] = sohandle;
@@ -806,6 +807,7 @@ int inject_remote_process(pid_t target_pid, const char *library_path, const char
     	ret = 0;
     
 exit_dlclose:
+/*
     parameters[0] = sohandle;
     
     if (ptrace_call_wrapper(target_pid, "dlclose", dlclose, parameters, 1, &regs) == -1)
@@ -825,7 +827,7 @@ exit_dlclose:
 			LOGE("%s\n",errbuf);
 		}
 	}
-
+*/
 
 exit_munmap:
 	/* munmap */
@@ -837,8 +839,6 @@ exit_munmap:
 
 	if(ptrace_call_wrapper(target_pid, "munmap", munmap_addr, parameters, 2, &regs) == -1)
 		goto exit_restore;
-
-	LOGD("munmap return %ld",ptrace_retval(&regs));	
 
 exit_restore:
     /* restore */
