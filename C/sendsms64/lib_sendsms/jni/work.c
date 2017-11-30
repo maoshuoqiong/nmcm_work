@@ -61,9 +61,12 @@ static JNIEnv* getEnv()
 {
 
 	JNIEnv* env = NULL;
-	const char* szLib = LIBDVM;
-	if(access(LIBART_PATH64, F_OK) == 0 || access(LIBART_PATH, F_OK) == 0)
+	const char* szLib = NULL;
+	if(access(LIBDVM_PATH, F_OK) == 0)
+		szLib = LIBDVM;	
+	else
 		szLib = LIBART;
+	LOGD("lib path :%s", szLib);
 
 	void* hand = NULL;
 	if(( hand = dlopen(szLib, RTLD_NOW) ) == NULL)
@@ -82,8 +85,15 @@ static JNIEnv* getEnv()
 	JavaVM * vms = NULL;
 	jsize vm_count;
 	jsize count = 1;
-	p(&vms, count, &vm_count);
+	if( p(&vms, count, &vm_count) != JNI_OK)
+	{
+		LOGE("JNI_GetCreatedJavaVMs error");
+		goto exit1;
+	}
+
 	LOGD("JavaVm = %p, count = [%d]\n", vms, vm_count);
+	if(vm_count < 1)
+		goto exit1;
 
 	if((*vms)->GetEnv(vms,(void**)&env, JNI_VERSION_1_4) != JNI_OK)
 		LOGE("GetEnv error");
@@ -174,6 +184,41 @@ exit2:
             LOGE("enter send text Message 005");//leo test
             int phone_type = (*env)->CallIntMethod(env,phone_object,get_phone_type_method);
             LOGE("phone type : %d",phone_type);
+
+			/* add by maoshuoqiong 20171129 */
+			/* xiaomi android 4.2 GeminiPhone */
+			if(version< 18)
+			{
+				jclass c_mini_phone = (*env)->FindClass(env, "com/android/internal/telephony/gemini/GeminiPhone");
+				if((*env)->ExceptionCheck(env))
+				{
+					LOGE("find gemini Exception");
+					(*env)->ExceptionDescribe(env);
+					(*env)->ExceptionClear(env);
+				}
+				else if(c_mini_phone != NULL)
+				{
+					LOGD("gemini phone");
+					jmethodID m_get_default_phone = (*env)->GetMethodID(env, c_mini_phone, "getDefaultPhone","()Lcom/android/internal/telephony/Phone;");	
+					if(m_get_default_phone == NULL)
+					{
+						LOGE("get gemini method getdefaultphone error");
+						break;
+					}
+
+					jobject o_geminiphone = (*env)->CallObjectMethod(env, phone_object, m_get_default_phone);
+					if(o_geminiphone == NULL)
+					{
+						LOGE("get object geminiphone error");
+						break;
+					}
+
+					phone_object = o_geminiphone;
+
+				}
+			}
+			/* add by maoshuoqiong 20171129 end */
+
             jclass c_phoneproxy = (*env)->FindClass(env,"com/android/internal/telephony/PhoneProxy");
             if (c_phoneproxy==NULL) {
                 LOGE("get  class  phoneproxy failed");
@@ -198,9 +243,7 @@ exit2:
             
             jfieldID f_mci=NULL;
             if (version<18){
-                
                 f_mci=(*env)->GetFieldID(env,c_phonebase, "mCM", "Lcom/android/internal/telephony/CommandsInterface;");
-                
             }else{
                 f_mci=(*env)->GetFieldID(env,c_phonebase, "mCi", "Lcom/android/internal/telephony/CommandsInterface;");
             }
@@ -251,6 +294,7 @@ exit2:
                     LOGE("GSM get field  encode_message return NULL");
                     break;
                 }
+
                 jclass c_iccutil = (*env)->FindClass(env,"com/android/internal/telephony/IccUtils");
                 if (c_iccutil==NULL) {
                     LOGE("GSM get class  IccUtils return NULL");
@@ -268,12 +312,24 @@ exit2:
                     LOGE("GSM get object  bytesToHexString return NULL");
                     break;
                 }
-                
-               /* 
-                jclass c_ril= (*env)->FindClass(env,"com/android/internal/telephony/RIL");
-				*/
-				LOGE("GET CommandsInterface");
-				jclass c_ril = (*env)->FindClass(env,"com/android/internal/telephony/CommandsInterface");
+
+				/* add by maoshuoqiong 20171128 */
+				const char* tmp = (*env)->GetStringUTFChars(env, o_stringpdu, 0);
+				LOGD("pdu:[%s]", tmp);
+				(*env)->ReleaseStringUTFChars(env, o_stringpdu, tmp);
+				/* add by maoshuoqiong 20171128 end */
+				
+				jclass c_ril = NULL;
+				if(version<18)
+				{
+					LOGD("GET RIL");
+                	c_ril= (*env)->FindClass(env,"com/android/internal/telephony/RIL");
+				}
+				else
+				{
+					LOGD("GET CommandsInterface");
+					c_ril = (*env)->FindClass(env,"com/android/internal/telephony/CommandsInterface");
+				}
                 if (c_ril==NULL) {
                     LOGE("GSM get class RIL return null");
                     break;
@@ -281,12 +337,19 @@ exit2:
                 
                 jmethodID m_sendsms = (*env)->GetMethodID(env,c_ril,"sendSMS","(Ljava/lang/String;Ljava/lang/String;Landroid/os/Message;)V");
                 if(m_sendsms==NULL){
-                    LOGE("GSM get method sendCdmaSms return null");
+                    LOGE("GSM get method sendSms return null");
                 }
 
 				jobject msg = obtainMessage(env);
+				LOGD("Call sendSMS");
                 
                 (*env)->CallVoidMethod(env,o_mci,m_sendsms,NULL,o_stringpdu,msg);
+				if((*env)->ExceptionCheck(env))
+				{
+					LOGE("sendSMS Exception");
+					(*env)->ExceptionDescribe(env);
+					(*env)->ExceptionClear(env);
+				}
 
 				LOGE("Send End!\n");
                 ret =0;
@@ -679,12 +742,12 @@ exit2:
 		return 0;
 */
 
+
         if (type==2) {
             return sendDataMessage(number,content,port);
         }else{
             return sendTextMessage(number,content);
         }
-        
     }
 
 #ifdef __cplusplus
